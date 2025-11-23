@@ -86,6 +86,16 @@ export default function Marketplace() {
     server.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Find groups that are used in servers but not defined in config
+  const configGroupIds = new Set(config.groups.map(g => g.id));
+  const implicitGroups = Array.from(new Set(
+    config.servers
+      .map(s => s.group)
+      .filter((g): g is string => !!g && !configGroupIds.has(g))
+  )).map(id => ({ id, name: id }));
+
+  const allGroups = [...config.groups, ...implicitGroups];
+
   const groupedServers = filteredServers.reduce((acc, server) => {
     const category = server.category || 'Other';
     if (!acc[category]) acc[category] = [];
@@ -242,7 +252,7 @@ export default function Marketplace() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="default">No Group (Default)</SelectItem>
-                  {config.groups.map(g => (
+                  {allGroups.map(g => (
                     <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                   ))}
                 </SelectContent>
