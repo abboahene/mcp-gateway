@@ -3,6 +3,7 @@ import Marketplace from './pages/Marketplace';
 import Groups from './pages/Groups';
 import { Button } from './components/ui/button';
 import Logo from './assets/logo.svg';
+import { ModeToggle } from './components/mode-toggle';
 
 function App() {
   return (
@@ -19,6 +20,11 @@ function App() {
           <Link to="/groups">
             <Button variant="ghost" className="w-full justify-start">Groups</Button>
           </Link>
+          <div className="mt-auto">
+            <div className="flex items-center gap-2">
+              <ModeToggle />
+            </div>
+          </div>
         </aside>
         <main className="flex-1 overflow-auto p-6">
           <Routes>

@@ -10,11 +10,19 @@ import { Badge } from '../components/ui/badge';
 import { Trash2, Plus, Settings } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+
 export default function Groups() {
   const [config, setConfig] = useState<GatewayConfig>({ servers: [], groups: [] });
   const [loading, setLoading] = useState(true);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  
+  // Edit Server State
+  const [editingServer, setEditingServer] = useState<ServerConfig | null>(null);
+  const [editCommand, setEditCommand] = useState('');
+  const [editArgs, setEditArgs] = useState('');
+  const [editGroup, setEditGroup] = useState<string>('default');
 
   useEffect(() => {
     loadData();
@@ -73,6 +81,32 @@ export default function Groups() {
     };
 
     await saveAndRefresh(newConfig);
+  };
+
+  const handleEditClick = (server: ServerConfig) => {
+    setEditingServer(server);
+    setEditCommand(server.command);
+    setEditArgs(server.args.join(' '));
+    setEditGroup(server.group || 'default');
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingServer) return;
+
+    const updatedServer = {
+      ...editingServer,
+      command: editCommand,
+      args: editArgs.split(' ').filter(Boolean),
+      group: editGroup === 'default' ? undefined : editGroup
+    };
+
+    const newConfig = {
+      ...config,
+      servers: config.servers.map(s => s.id === editingServer.id ? updatedServer : s)
+    };
+
+    await saveAndRefresh(newConfig);
+    setEditingServer(null);
   };
 
   const saveAndRefresh = async (newConfig: GatewayConfig) => {
@@ -139,6 +173,7 @@ export default function Groups() {
                         key={server.id} 
                         server={server} 
                         onDelete={() => handleDeleteServer(server.id)} 
+                        onEdit={() => handleEditClick(server)}
                       />
                     ))}
                   </div>
@@ -168,6 +203,7 @@ export default function Groups() {
                             key={server.id} 
                             server={server} 
                             onDelete={() => handleDeleteServer(server.id)} 
+                            onEdit={() => handleEditClick(server)}
                           />
                         ))
                       )}
@@ -205,11 +241,60 @@ export default function Groups() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editingServer} onOpenChange={(open) => !open && setEditingServer(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit {editingServer?.name}</DialogTitle>
+            <DialogDescription>
+              Update server configuration.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-command">Command</Label>
+              <Input 
+                id="edit-command" 
+                value={editCommand}
+                onChange={(e) => setEditCommand(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-args">Arguments</Label>
+              <Input 
+                id="edit-args" 
+                value={editArgs}
+                onChange={(e) => setEditArgs(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-group">Group</Label>
+              <Select value={editGroup} onValueChange={setEditGroup}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">No Group (Default)</SelectItem>
+                  {allGroups.map(g => (
+                    <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingServer(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function ServerCard({ server, onDelete }: { server: ServerConfig, onDelete: () => void }) {
+function ServerCard({ server, onDelete, onEdit }: { server: ServerConfig, onDelete: () => void, onEdit: () => void }) {
   return (
     <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
       <div className="grid gap-0.5">
@@ -224,7 +309,7 @@ function ServerCard({ server, onDelete }: { server: ServerConfig, onDelete: () =
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-7 w-7">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onEdit}>
           <Settings className="h-3.5 w-3.5" />
         </Button>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onDelete}>
