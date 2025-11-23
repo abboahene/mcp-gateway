@@ -13,7 +13,7 @@ interface ConfigDialogProps {
 export function ConfigDialog({ open, onOpenChange, groups }: ConfigDialogProps) {
   const [copied, setCopied] = useState(false);
 
-  const serverName = `mcp-gateway-${groups.join('-')}`;
+  const serverName = "mcp-gateway";
   const env = { MCP_GATEWAY_GROUPS: groups.join(',') };
 
   const config = {
