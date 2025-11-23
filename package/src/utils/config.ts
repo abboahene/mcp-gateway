@@ -12,8 +12,14 @@ export interface ServerConfig {
   group?: string;
 }
 
+export interface GroupConfig {
+  id: string;
+  name: string;
+}
+
 export interface GatewayConfig {
   servers: ServerConfig[];
+  groups: GroupConfig[];
 }
 
 export const CONFIG_DIR = path.join(os.homedir(), '.mcp-gateway');
@@ -34,9 +40,13 @@ export async function loadConfig(): Promise<GatewayConfig> {
       await ensureConfigDir();
     }
     const data = await fs.readFile(configPath, 'utf-8');
-    return JSON.parse(data);
+    const config = JSON.parse(data);
+    return {
+      servers: config.servers || [],
+      groups: config.groups || []
+    };
   } catch (error) {
-    return { servers: [] };
+    return { servers: [], groups: [] };
   }
 }
 
