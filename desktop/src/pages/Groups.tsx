@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
-import { Trash2, Plus, Settings } from 'lucide-react';
+import { Trash2, Plus, Settings, FileJson } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { ConfigDialog } from '../components/config-dialog';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
@@ -18,6 +19,10 @@ export default function Groups() {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   
+  // Config Dialog State
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [configGroups, setConfigGroups] = useState<string[]>([]);
+
   // Edit Server State
   const [editingServer, setEditingServer] = useState<ServerConfig | null>(null);
   const [editCommand, setEditCommand] = useState('');
@@ -42,8 +47,32 @@ export default function Groups() {
   const handleCreateGroup = async () => {
     if (!newGroupName) return;
     
+    // Create a slug from the name for readable IDs
+    const slug = newGroupName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+
+    if (!slug) {
+      alert('Invalid group name');
+      return;
+    }
+
+    // Check for duplicates in both config groups and implicit groups
+    const configGroupIds = new Set(config.groups.map(g => g.id));
+    const implicitGroups = new Set(
+      config.servers
+        .map(s => s.group)
+        .filter((g): g is string => !!g && !configGroupIds.has(g))
+    );
+
+    if (configGroupIds.has(slug) || implicitGroups.has(slug)) {
+      alert('A group with this ID already exists.');
+      return;
+    }
+    
     const newGroup: GroupConfig = {
-      id: crypto.randomUUID(),
+      id: slug,
       name: newGroupName
     };
 
@@ -109,6 +138,11 @@ export default function Groups() {
     setEditingServer(null);
   };
 
+  const handleGenerateConfig = (groups: string[]) => {
+    setConfigGroups(groups);
+    setIsConfigOpen(true);
+  };
+
   const saveAndRefresh = async (newConfig: GatewayConfig) => {
     try {
       await saveConfig(newConfig);
@@ -140,9 +174,14 @@ export default function Groups() {
           <h2 className="text-xl font-bold tracking-tight">Groups</h2>
           <p className="text-sm text-muted-foreground">Manage your server groups and configurations.</p>
         </div>
-        <Button onClick={() => setIsCreateGroupOpen(true)} size="sm">
-          <Plus className="mr-2 h-4 w-4" /> Create Group
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleGenerateConfig([...(ungroupedServers.length ? ['default'] : []), ...allGroups.map(g => g.id)])}>
+            <FileJson className="mr-2 h-4 w-4" /> Client Config
+          </Button>
+          <Button onClick={() => setIsCreateGroupOpen(true)} size="sm">
+            <Plus className="mr-2 h-4 w-4" /> Create Group
+          </Button>
+        </div>
       </div>
 
       {(!ungroupedServers.length && !allGroups.length) ? (
@@ -163,8 +202,11 @@ export default function Groups() {
           {ungroupedServers.length > 0 && (
             <TabsContent value="ungrouped" className="mt-4">
               <Card>
-                <CardHeader className="p-4 pb-2">
+                <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                   <CardTitle className="text-lg font-bold">Ungrouped Servers</CardTitle>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleGenerateConfig(['default'])}>
+                    <FileJson className="h-4 w-4" />
+                  </Button>
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
                   <div className="grid gap-2 mt-2">
@@ -189,9 +231,14 @@ export default function Groups() {
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
                     <CardTitle className="text-lg font-bold">{group.name}</CardTitle>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteGroup(group.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleGenerateConfig([group.id])}>
+                        <FileJson className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteGroup(group.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-0">
                     <div className="space-y-2 mt-2">
@@ -215,6 +262,12 @@ export default function Groups() {
           })}
         </Tabs>
       )}
+
+      <ConfigDialog 
+        open={isConfigOpen} 
+        onOpenChange={setIsConfigOpen} 
+        groups={configGroups} 
+      />
 
       <Dialog open={isCreateGroupOpen} onOpenChange={setIsCreateGroupOpen}>
         <DialogContent>
