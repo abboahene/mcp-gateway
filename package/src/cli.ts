@@ -245,7 +245,7 @@ program
     
     // Sanitize group name for the server ID (replace commas with dashes)
     const groups = options.groups;
-    const serverName = `mcp-gateway-${groups.replace(/,/g, '-')}`;
+    const serverName = 'mcp-gateway';
     
     const env = { MCP_GATEWAY_GROUPS: groups };
 

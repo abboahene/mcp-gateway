@@ -45,13 +45,13 @@ Just **ONE** config entry for **ALL** your MCP servers! 🎉
 ### Global Installation (Recommended)
 
 ```bash
-npm install -g @mcp-gateway/server
+npm install -g @mcp-gateway/cli
 ```
 
 ### Local Installation
 
 ```bash
-npm install @mcp-gateway/server
+npm install @mcp-gateway/cli
 ```
 
 ## 🚀 Quick Start
@@ -397,7 +397,7 @@ mcp-gateway start 2> gateway.log
 You can also use MCP Gateway as a library:
 
 ```typescript
-import { MCPGateway } from '@mcp-gateway/server';
+import { MCPGateway } from '@mcp-gateway/cli';
 
 const gateway = new MCPGateway();
 await gateway.start();

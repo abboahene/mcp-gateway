@@ -1,5 +1,5 @@
 {
-  "name": "@mcp-gateway/server",
+  "name": "@mcp-gateway/cli",
   "version": "1.0.0",
   "description": "Aggregate multiple MCP servers into a single endpoint with visual management",
   "main": "dist/index.js",
