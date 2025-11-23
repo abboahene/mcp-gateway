@@ -9,6 +9,7 @@ export interface ServerConfig {
   args: string[];
   enabled: boolean;
   env?: Record<string, string>;
+  group?: string;
 }
 
 export interface GatewayConfig {

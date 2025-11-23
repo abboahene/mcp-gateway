@@ -154,10 +154,24 @@ export class MCPGateway {
 
   async start(): Promise<void> {
     const config = await loadConfig();
+    
+    // Determine allowed groups
+    // Priority: MCP_GATEWAY_GROUPS (list) > MCP_GATEWAY_GROUP (single) > 'default'
+    let allowedGroups: string[] = ['default'];
+    
+    if (process.env.MCP_GATEWAY_GROUPS) {
+      allowedGroups = process.env.MCP_GATEWAY_GROUPS.split(',').map(g => g.trim());
+    } else if (process.env.MCP_GATEWAY_GROUP) {
+      allowedGroups = [process.env.MCP_GATEWAY_GROUP];
+    }
 
-    // Connect to all enabled servers
+    console.error(`Starting MCP Gateway for groups: ${allowedGroups.join(', ')}`);
+
+    // Connect to all enabled servers in the target groups
     for (const serverConfig of config.servers) {
-      if (serverConfig.enabled) {
+      const serverGroup = serverConfig.group || 'default';
+      
+      if (serverConfig.enabled && allowedGroups.includes(serverGroup)) {
         try {
           await this.connectBackend(serverConfig);
         } catch (error) {

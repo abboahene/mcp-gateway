@@ -12,7 +12,7 @@
     "dev": "tsx watch src/gateway-server.ts",
     "start": "node dist/gateway-server.js",
     "cli": "tsx src/cli.ts",
-    "test": "node --test",
+    "test": "tsx --test test/**/*.ts",
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist"
   },

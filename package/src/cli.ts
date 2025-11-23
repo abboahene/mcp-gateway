@@ -2,54 +2,21 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import * as fs from 'fs/promises';
 import * as path from 'path';
-import * as os from 'os';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
+import { 
+  loadConfig, 
+  saveConfig, 
+  ServerConfig, 
+  CONFIG_PATH,
+  ensureConfigDir
+} from './utils/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-interface ServerConfig {
-  id: string;
-  name: string;
-  command: string;
-  args: string[];
-  enabled: boolean;
-  env?: Record<string, string>;
-}
-
-interface GatewayConfig {
-  servers: ServerConfig[];
-}
-
-const CONFIG_DIR = path.join(os.homedir(), '.mcp-gateway');
-const CONFIG_PATH = path.join(CONFIG_DIR, 'config.json');
-
 const program = new Command();
-
-async function ensureConfigDir() {
-  try {
-    await fs.mkdir(CONFIG_DIR, { recursive: true });
-  } catch (error) {
-    // Ignore if already exists
-  }
-}
-
-async function loadConfig(): Promise<GatewayConfig> {
-  try {
-    const data = await fs.readFile(CONFIG_PATH, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return { servers: [] };
-  }
-}
-
-async function saveConfig(config: GatewayConfig): Promise<void> {
-  await ensureConfigDir();
-  await fs.writeFile(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
-}
 
 program
   .name('mcp-gateway')
@@ -101,15 +68,27 @@ program
 
     console.log(chalk.bold('\n📦 Configured Servers:\n'));
     
+    // Group servers
+    const groups: Record<string, ServerConfig[]> = {};
     for (const server of config.servers) {
-      const status = server.enabled 
-        ? chalk.green('✓ enabled') 
-        : chalk.dim('✗ disabled');
+      const group = server.group || 'default';
+      if (!groups[group]) groups[group] = [];
+      groups[group].push(server);
+    }
+
+    for (const [group, servers] of Object.entries(groups)) {
+      console.log(chalk.blue.bold(`[ ${group} ]`));
       
-      console.log(`${chalk.bold(server.name)} ${status}`);
-      console.log(chalk.dim(`  ID: ${server.id}`));
-      console.log(chalk.dim(`  Command: ${server.command} ${server.args.join(' ')}`));
-      console.log();
+      for (const server of servers) {
+        const status = server.enabled 
+          ? chalk.green('✓ enabled') 
+          : chalk.dim('✗ disabled');
+        
+        console.log(`  ${chalk.bold(server.name)} ${status}`);
+        console.log(chalk.dim(`    ID: ${server.id}`));
+        console.log(chalk.dim(`    Command: ${server.command} ${server.args.join(' ')}`));
+        console.log();
+      }
     }
   });
 
@@ -122,6 +101,7 @@ program
   .requiredOption('-c, --command <command>', 'Command to run')
   .option('-a, --args <args...>', 'Command arguments', [])
   .option('-e, --env <vars...>', 'Environment variables (KEY=VALUE)')
+  .option('-g, --group <group>', 'Server group', 'default')
   .option('--disabled', 'Add server but keep it disabled')
   .action(async (options) => {
     const spinner = ora('Adding server...').start();
@@ -159,6 +139,7 @@ program
         args: options.args,
         enabled: !options.disabled,
         env: Object.keys(env).length > 0 ? env : undefined,
+        group: options.group,
       };
 
       config.servers.push(server);
@@ -166,6 +147,7 @@ program
 
       spinner.succeed(chalk.green(`Added server "${options.name}"`));
       console.log(chalk.dim(`  ID: ${options.id}`));
+      console.log(chalk.dim(`  Group: ${options.group}`));
       console.log(chalk.dim(`  Status: ${server.enabled ? 'enabled' : 'disabled'}`));
     } catch (error) {
       spinner.fail(chalk.red('Failed to add server'));
@@ -257,23 +239,32 @@ program
   .command('config')
   .description('Generate client configuration')
   .option('-o, --output <type>', 'Output format (claude, vscode)', 'claude')
+  .option('-g, --groups <groups>', 'Server groups to generate config for (comma-separated)', 'default')
   .action(async (options) => {
     const gatewayPath = path.join(__dirname, 'gateway-server.js');
+    
+    // Sanitize group name for the server ID (replace commas with dashes)
+    const groups = options.groups;
+    const serverName = `mcp-gateway-${groups.replace(/,/g, '-')}`;
+    
+    const env = { MCP_GATEWAY_GROUPS: groups };
 
     const configs: Record<string, any> = {
       claude: {
         mcpServers: {
-          'mcp-gateway': {
+          [serverName]: {
             command: 'node',
             args: [gatewayPath],
+            env,
           },
         },
       },
       vscode: {
-        'mcp.servers': {
-          'mcp-gateway': {
+        'servers': {
+          [serverName]: {
             command: 'node',
             args: [gatewayPath],
+            env,
           },
         },
       },
