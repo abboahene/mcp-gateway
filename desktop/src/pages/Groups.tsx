@@ -87,15 +87,13 @@ export default function Groups() {
   };
 
   const handleDeleteGroup = async (groupId: string) => {
-    if (!confirm('Are you sure? Servers in this group will be ungrouped.')) return;
+    if (!confirm('Are you sure? All servers in this group will be deleted.')) return;
 
-    // Remove group and update servers that were in this group
+    // Remove group and remove servers that were in this group
     const newConfig = {
       ...config,
       groups: config.groups.filter(g => g.id !== groupId),
-      servers: config.servers.map(s => 
-        s.group === groupId ? { ...s, group: undefined } : s
-      )
+      servers: config.servers.filter(s => s.group !== groupId)
     };
 
     await saveAndRefresh(newConfig);
